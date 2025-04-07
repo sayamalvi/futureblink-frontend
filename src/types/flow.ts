@@ -22,6 +22,20 @@ export interface CustomNodeProps {
 export type FlowNode = Node<NodeData>;
 export type FlowEdge = Edge;
 
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+}
+
+export interface List {
+  id: string;
+  name: string;
+  description?: string;
+  leads: Lead[];
+}
+
 export interface EmailTemplate {
   id: string;
   name: string;

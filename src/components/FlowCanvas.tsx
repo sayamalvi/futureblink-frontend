@@ -20,6 +20,7 @@ import { DelayModal } from './modals/DelayModal';
 import { NotificationModal } from './modals/NotificationModal';
 import { FlowNode, EMAIL_TEMPLATES, DelayType } from '../types/flow';
 import { Button } from './ui/button';
+import { useSequenceHandlers } from '../hooks/useSequenceHandlers';
 
 const nodeTypes = {
     custom: CustomNode,
@@ -51,7 +52,6 @@ const initialNodes: FlowNode[] = [
     },
 ];
 
-// Add interface for Lead and List
 interface Lead {
     id: string;
     name: string;
@@ -65,7 +65,7 @@ interface List {
     leads: Lead[];
 }
 
-export function FlowCanvas() {
+export const FlowCanvas: React.FC = () => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [isListModalOpen, setIsListModalOpen] = useState(false);
@@ -77,8 +77,7 @@ export function FlowCanvas() {
     const [selectedList, setSelectedList] = useState<List | null>(null);
     const [hasEmailNode, setHasEmailNode] = useState(false);
     const [hasDelayNode, setHasDelayNode] = useState(false);
-    
-    // Add state for notification modal
+
     const [notification, setNotification] = useState<{
         isOpen: boolean;
         title: string;
@@ -271,94 +270,41 @@ export function FlowCanvas() {
         setIsDelayModalOpen(false);
     };
 
-    const processSequence = async () => {
-        if (!selectedList) {
-            showNotification(
-                'Missing Lead Source',
-                'Please select a lead source first'
-            );
-            return;
-        }
+    const { processSequence } = useSequenceHandlers({
+        nodes,
+        selectedList,
+        hasEmailNode,
+        setIsSaving,
+        showNotification: (message, type) => {
+            // Implement notification system
+            console.log(message, type);
+        },
+    });
 
-        if (!hasEmailNode) {
-            showNotification(
-                'Missing Email Node',
-                'Please add an email node to your sequence'
-            );
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            const emailNode = nodes.find(node => node.id === 'email-node');
-            const delayNode = nodes.find(node => node.id === 'delay-node');
-            
-            // Calculate delay time in minutes
-            let delayMinutes = 0;
-            if (delayNode) {
-                const amount = delayNode.data.delayAmount || 0;
-                const type = delayNode.data.delayType;
-                
-                switch (type) {
-                    case 'hours':
-                        delayMinutes = amount * 60;
-                        break;
-                    case 'days':
-                        delayMinutes = amount * 24 * 60;
-                        break;
-                    default:
-                        delayMinutes = amount;
-                }
-            }
-
-            // Calculate the scheduled time by adding delay to current time
-            const scheduledTime = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
-
-            if (emailNode) {
-                const template = EMAIL_TEMPLATES.find(t => t.name === emailNode.data.template);
-                if (!template) {
-                    throw new Error('Email template not found');
-                }
-
-                // Create email requests for all leads
-                const emailRequests = selectedList.leads.map(lead => ({
-                    time: scheduledTime,
-                    emailBody: template.content.replace('{{name}}', lead.name),
-                    subject: template.subject,
-                    to: lead.email,
-                }));
-
-                // Send all email requests in a single API call
-                await fetch('http://localhost:5000/api/outreach/schedule', {
+    const handleSaveSequence = useCallback(async () => {
+        const emailRequests = await processSequence();
+        if (emailRequests) {
+            try {
+                await fetch(`${import.meta.env.VITE_BACKEND_URI}/api/outreach/schedule`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(emailRequests),
                 });
+                console.log('Sequence saved and scheduled successfully!');
+            } catch (error) {
+                console.error('Error saving sequence:', error);
             }
-
-            showNotification(
-                'Success',
-                'Sequence saved and scheduled successfully!'
-            );
-        } catch (error) {
-            console.error('Error saving sequence:', error);
-            showNotification(
-                'Error',
-                'Error saving sequence. Please try again.'
-            );
-        } finally {
-            setIsSaving(false);
         }
-    };
+    }, [processSequence]);
 
     return (
         <div className="flex flex-col w-full h-[800px]">
             <div className="flex justify-end p-4">
-                <Button 
-                    onClick={processSequence}
-                    disabled={isSaving || !selectedList || !hasEmailNode}
+                <Button
+                    onClick={handleSaveSequence}
+                    disabled={!selectedList || !hasEmailNode || isSaving}
                 >
                     {isSaving ? 'Saving...' : 'Save Sequence'}
                 </Button>
