@@ -21,6 +21,7 @@ import { NotificationModal } from './modals/NotificationModal';
 import { FlowNode, EMAIL_TEMPLATES, DelayType } from '../types/flow';
 import { Button } from './ui/button';
 import { useSequenceHandlers } from '../hooks/useSequenceHandlers';
+import { Rocket } from 'lucide-react';
 
 const nodeTypes = {
     custom: CustomNode,
@@ -303,10 +304,12 @@ export const FlowCanvas: React.FC = () => {
         <div className="flex flex-col w-full h-[800px]">
             <div className="flex justify-end p-4">
                 <Button
+                    className='bg-blue-500 text-white'
                     onClick={handleSaveSequence}
                     disabled={!selectedList || !hasEmailNode || isSaving}
                 >
                     {isSaving ? 'Saving...' : 'Save Sequence'}
+                    <Rocket />
                 </Button>
             </div>
             <div className="flex-1">

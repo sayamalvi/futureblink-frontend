@@ -70,11 +70,8 @@ export function ListSelectionModal({ isOpen, onClose, onSelect, lists }: ListSel
               <SelectContent>
                 {lists.map((list) => (
                   <SelectItem key={list.id} value={list.id}>
-                    <div className="flex flex-col">
-                      <span>{list.name}</span>
-                      <span className="text-sm text-gray-500">
-                        {list.leads.length} leads
-                      </span>
+                    <div className="flex gap-2">
+                      <span>{list.name} - {list.leads.length} leads</span>
                     </div>
                   </SelectItem>
                 ))}

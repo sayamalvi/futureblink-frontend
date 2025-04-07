@@ -47,9 +47,9 @@ export interface EmailTemplate {
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: 'template-1',
-    name: 'Sample Template - Follow Up',
+    name: 'Sample Template',
     description: 'added by Sayam Alvi',
-    subject: 'Following up on our conversation',
+    subject: 'Outreach Cold mail',
     content: 'Hi {{name}},\n\nI hope this email finds you well. I wanted to follow up on our previous conversation.\n\nBest regards,\nSalesBlink Team'
   }
 ]; 

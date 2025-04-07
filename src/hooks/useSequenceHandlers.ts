@@ -35,31 +35,27 @@ export const useSequenceHandlers = ({
       const delayNode = nodes.find((node) => node.type === "delay");
 
       // Calculate delay time in minutes
-      let delayMinutes = 0;
+      let delay = 0;
       if (delayNode) {
         const amount = Number(delayNode.data.delayAmount) || 0;
         const type = delayNode.data.delayType;
 
         switch (type) {
           case "hours":
-            delayMinutes = amount * 60;
+            delay = amount * 3600;
             break;
           case "days":
-            delayMinutes = amount * 24 * 60;
+            delay = amount * 86400;
             break;
           default:
-            delayMinutes = amount;
+            delay = amount;
         }
       }
 
       // Calculate the scheduled time by adding delay to current time
-      const scheduledTime = new Date(
-        Date.now() + delayMinutes * 60 * 1000
-      ).toISOString();
-
       if (emailNode) {
         const template = EMAIL_TEMPLATES.find(
-          (t) => t.id === emailNode.data.template
+          (t) => t.name === emailNode.data.template
         );
         if (!template) {
           throw new Error("Email template not found");
@@ -67,7 +63,7 @@ export const useSequenceHandlers = ({
 
         // Create email requests for all leads
         const emailRequests = selectedList.leads.map((lead) => ({
-          time: scheduledTime,
+          time: delay,
           emailBody: template.content.replace("{{name}}", lead.name),
           subject: template.subject,
           to: lead.email,

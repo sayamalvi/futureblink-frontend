@@ -47,13 +47,13 @@ export function EmailTemplateModal({ isOpen, onClose, onInsert }: EmailTemplateM
               onValueChange={(value) => setSelectedTemplateId(value)}
               value={selectedTemplateId || ""}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full py-6">
                 <SelectValue placeholder="Select a template" />
               </SelectTrigger>
               <SelectContent>
                 {EMAIL_TEMPLATES.map((template) => (
                   <SelectItem key={template.id} value={template.id}>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-start">
                       <span>{template.name}</span>
                       {template.description && (
                         <span className="text-sm text-gray-500">
