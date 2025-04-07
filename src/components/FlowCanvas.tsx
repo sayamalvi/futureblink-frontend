@@ -1,40 +1,38 @@
 import { useState, useCallback } from 'react';
 import {
     ReactFlow,
-    Node,
-    Edge,
     Controls,
     Background,
     useNodesState,
     useEdgesState,
     addEdge,
     Connection,
+    Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ListSelectionModal } from './ListSelectionModal';
+import { ListSelectionModal } from './modals/ListSelectionModal';
 import { CustomNode } from './CustomNode';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import { Hourglass, Mail } from 'lucide-react';
-
+import { EmailNode } from './nodes/EmailNode';
+import { DelayNode } from './nodes/DelayNode';
+import { BlocksModal } from './modals/BlocksModal';
+import { EmailTemplateModal } from './modals/EmailTemplateModal';
+import { DelayModal } from './modals/DelayModal';
+import { FlowNode, EMAIL_TEMPLATES, DelayType } from '../types/flow';
 
 const nodeTypes = {
     custom: CustomNode,
+    'cold-email': EmailNode,
+    delay: DelayNode,
 };
 
-const initialNodes: Node[] = [
+const initialNodes: FlowNode[] = [
     {
         id: 'add-source',
         type: 'custom',
-        position: { x: 250, y: 150 },
+        position: { x: 250, y: 0 },
         data: {
             label: 'Add Lead Source',
-            subLabel: 'Click to add leads from List',
+            subLabel: 'Click to add leads from List or CRM',
             type: 'add-source'
         },
         draggable: false
@@ -42,7 +40,7 @@ const initialNodes: Node[] = [
     {
         id: 'sequence-start',
         type: 'custom',
-        position: { x: 260, y: 300 },
+        position: { x: 280, y: 150 },
         data: {
             label: 'Sequence Start Point',
             type: 'sequence-start'
@@ -51,24 +49,28 @@ const initialNodes: Node[] = [
     },
 ];
 
-const initialEdges: Edge[] = [];
-
 export function FlowCanvas() {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+    const [isListModalOpen, setIsListModalOpen] = useState(false);
     const [isBlocksModalOpen, setIsBlocksModalOpen] = useState(false);
-    const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isDelayModalOpen, setIsDelayModalOpen] = useState(false);
+    const [selectedNode, setSelectedNode] = useState<FlowNode | null>(null);
 
     const onConnect = useCallback(
-        (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-        [setEdges]
-    );
-
-    const handleNodeClick = (event: React.MouseEvent, node: Node) => {
+        (params: Connection) => {
+            const edge = addEdge(params, edges);
+            if (edge) {
+                setEdges(edge);
+            }
+        },
+        [edges, setEdges]
+    )
+    const handleNodeClick = (event: React.MouseEvent, node: FlowNode) => {
         if (node.data.type === 'add-source') {
             setSelectedNode(node);
-            setIsModalOpen(true);
+            setIsListModalOpen(true);
         } else if (node.data.type === 'sequence-start') {
             setIsBlocksModalOpen(true);
         }
@@ -98,9 +100,79 @@ export function FlowCanvas() {
                 target: 'sequence-start',
                 type: 'smoothstep',
             };
-            setEdges([newEdge]);
+            setEdges((eds) => [...eds, newEdge]);
         }
-        setIsModalOpen(false);
+        setIsListModalOpen(false);
+    };
+
+    const getNextNodePosition = () => {
+        const lastNode = [...nodes].sort((a, b) => b.position.y - a.position.y)[0];
+        return { x: 250, y: lastNode.position.y + 150 };
+    };
+
+    const handleEmailSelection = () => {
+        setIsBlocksModalOpen(false);
+        setIsEmailModalOpen(true);
+    };
+
+    const handleDelaySelection = () => {
+        setIsBlocksModalOpen(false);
+        setIsDelayModalOpen(true);
+    };
+
+    const handleEmailInsert = (templateId: string, enableABTesting: boolean) => {
+        const template = EMAIL_TEMPLATES.find(t => t.id === templateId);
+        if (!template) return;
+
+        const position = getNextNodePosition();
+        const newNode: FlowNode = {
+            id: `email-${Date.now()}`,
+            type: 'cold-email',
+            position,
+            data: {
+                label: template.name,
+                type: 'cold-email',
+                template: template.name,
+                enableABTesting,
+            },
+        };
+
+        const lastNodeId = nodes[nodes.length - 1].id;
+        const newEdge: Edge = {
+            id: `edge-${Date.now()}`,
+            source: lastNodeId,
+            target: newNode.id,
+            type: 'smoothstep',
+        };
+
+        setNodes((nds) => [...nds, newNode]);
+        setEdges((eds) => [...eds, newEdge]);
+    };
+
+    const handleDelayInsert = (amount: number, type: DelayType) => {
+        const position = getNextNodePosition();
+        const newNode: FlowNode = {
+            id: `delay-${Date.now()}`,
+            type: 'delay',
+            position,
+            data: {
+                label: `Wait ${amount} ${type}`,
+                type: 'delay',
+                delayAmount: amount,
+                delayType: type,
+            },
+        };
+
+        const lastNodeId = nodes[nodes.length - 1].id;
+        const newEdge: Edge = {
+            id: `edge-${Date.now()}`,
+            source: lastNodeId,
+            target: newNode.id,
+            type: 'smoothstep',
+        };
+
+        setNodes((nds) => [...nds, newNode]);
+        setEdges((eds) => [...eds, newEdge]);
     };
 
     return (
@@ -119,9 +191,6 @@ export function FlowCanvas() {
             </ReactFlow>
 
             <ListSelectionModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSelect={handleListSelection}
                 lists={[
                     {
                         id: "sample-list",
@@ -131,47 +200,29 @@ export function FlowCanvas() {
                         ],
                     },
                 ]}
+                isOpen={isListModalOpen}
+                onClose={() => setIsListModalOpen(false)}
+                onSelect={handleListSelection}
             />
 
+            <BlocksModal
+                isOpen={isBlocksModalOpen}
+                onClose={() => setIsBlocksModalOpen(false)}
+                onSelectEmailBlock={handleEmailSelection}
+                onSelectDelayBlock={handleDelaySelection}
+            />
 
-            <Dialog open={isBlocksModalOpen} onOpenChange={setIsBlocksModalOpen}>
-                <DialogContent className="w-[600px] rounded-xl">
-                    <DialogHeader>
-                        <div className="flex justify-between items-center mb-2">
-                            <DialogTitle className="text-xl font-semibold">Add Blocks</DialogTitle>
-                        </div>
-                        <DialogDescription className="text-gray-600">
-                            Click on a block to configure and add it in sequence.
-                        </DialogDescription>
-                    </DialogHeader>
+            <EmailTemplateModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                onInsert={handleEmailInsert}
+            />
 
-                    <div className="space-y-4 mt-4">
-                        <h3 className="font-medium">Outreach</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="border rounded-lg p-4 flex items-center space-x-3 hover:bg-gray-50 cursor-pointer transition">
-                                <div className="bg-purple-100 p-2 rounded">
-                                    <Mail className="w-6 h-6 text-purple-600" />
-                                </div>
-                                <div>
-                                    <div className="font-medium">Cold Email</div>
-                                    <div className="text-sm text-gray-500">Send an email to a lead.</div>
-                                </div>
-                            </div>
-
-                            <div className="border rounded-lg p-4 flex items-center space-x-3 hover:bg-gray-50 cursor-pointer transition">
-                                <div className="bg-purple-100 p-2 rounded">
-                                    <Hourglass className="w-6 h-6 text-purple-600" />
-                                </div>
-                                <div>
-                                    <div className="font-medium">Wait/Delay</div>
-                                    <div className="text-sm text-gray-500">Add a delay between blocks</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
+            <DelayModal
+                isOpen={isDelayModalOpen}
+                onClose={() => setIsDelayModalOpen(false)}
+                onInsert={handleDelayInsert}
+            />
         </div>
     );
 } 
