@@ -13,25 +13,25 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
+} from "../ui/select";
 
-type Lead = {
+interface Lead {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-};
+  phone: string;
+}
 
-type List = {
+interface List {
   id: string;
   name: string;
   leads: Lead[];
-};
+}
 
 interface ListSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (list: string) => void;
+  onSelect: (list: List) => void;
   lists: List[];
 }
 
@@ -42,7 +42,8 @@ export function ListSelectionModal({ isOpen, onClose, onSelect, lists }: ListSel
     if (selectedListId) {
       const selectedList = lists.find((list) => list.id === selectedListId);
       if (selectedList) {
-        onSelect(selectedList.name);
+        onSelect(selectedList);
+        onClose();
       }
     }
   };
@@ -69,7 +70,12 @@ export function ListSelectionModal({ isOpen, onClose, onSelect, lists }: ListSel
               <SelectContent>
                 {lists.map((list) => (
                   <SelectItem key={list.id} value={list.id}>
-                    {list.name}
+                    <div className="flex flex-col">
+                      <span>{list.name}</span>
+                      <span className="text-sm text-gray-500">
+                        {list.leads.length} leads
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

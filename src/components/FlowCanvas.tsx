@@ -51,6 +51,20 @@ const initialNodes: FlowNode[] = [
     },
 ];
 
+// Add interface for Lead and List
+interface Lead {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+}
+
+interface List {
+    id: string;
+    name: string;
+    leads: Lead[];
+}
+
 export function FlowCanvas() {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -60,7 +74,7 @@ export function FlowCanvas() {
     const [isDelayModalOpen, setIsDelayModalOpen] = useState(false);
     const [selectedNode, setSelectedNode] = useState<FlowNode | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedList, setSelectedList] = useState<string | null>(null);
+    const [selectedList, setSelectedList] = useState<List | null>(null);
     const [hasEmailNode, setHasEmailNode] = useState(false);
     const [hasDelayNode, setHasDelayNode] = useState(false);
     
@@ -113,7 +127,7 @@ export function FlowCanvas() {
         }
     };
 
-    const handleListSelection = (list: string) => {
+    const handleListSelection = (list: List) => {
         setSelectedList(list);
         if (selectedNode) {
             const updatedNodes = nodes.map((node) => {
@@ -123,7 +137,7 @@ export function FlowCanvas() {
                         data: {
                             ...node.data,
                             label: 'Leads from',
-                            subLabel: list,
+                            subLabel: list.name,
                             selected: true,
                         },
                     };
@@ -169,7 +183,7 @@ export function FlowCanvas() {
         setIsDelayModalOpen(true);
     };
 
-    const handleEmailInsert = (templateId: string, enableABTesting: boolean) => {
+    const handleEmailInsert = (templateId: string) => {
         const template = EMAIL_TEMPLATES.find(t => t.id === templateId);
         if (!template) return;
 
@@ -182,7 +196,6 @@ export function FlowCanvas() {
                 label: template.name,
                 type: 'cold-email',
                 template: template.name,
-                enableABTesting,
             },
             draggable: false
         };
@@ -280,35 +293,48 @@ export function FlowCanvas() {
             const emailNode = nodes.find(node => node.id === 'email-node');
             const delayNode = nodes.find(node => node.id === 'delay-node');
             
-            let delay = 0;
+            // Calculate delay time in minutes
+            let delayMinutes = 0;
             if (delayNode) {
                 const amount = delayNode.data.delayAmount || 0;
                 const type = delayNode.data.delayType;
                 
                 switch (type) {
                     case 'hours':
-                        delay = amount * 60;
+                        delayMinutes = amount * 60;
                         break;
                     case 'days':
-                        delay = amount * 24 * 60;
+                        delayMinutes = amount * 24 * 60;
                         break;
                     default:
-                        delay = amount;
+                        delayMinutes = amount;
                 }
             }
 
+            // Calculate the scheduled time by adding delay to current time
+            const scheduledTime = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
+
             if (emailNode) {
-                await fetch('/api/outreach/schedule', {
+                const template = EMAIL_TEMPLATES.find(t => t.name === emailNode.data.template);
+                if (!template) {
+                    throw new Error('Email template not found');
+                }
+
+                // Create email requests for all leads
+                const emailRequests = selectedList.leads.map(lead => ({
+                    time: scheduledTime,
+                    emailBody: template.content.replace('{{name}}', lead.name),
+                    subject: template.subject,
+                    to: lead.email,
+                }));
+
+                // Send all email requests in a single API call
+                await fetch('http://localhost:5000/api/outreach/schedule', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        template: emailNode.data.template,
-                        delay,
-                        enableABTesting: emailNode.data.enableABTesting,
-                        list: selectedList,
-                    }),
+                    body: JSON.stringify(emailRequests),
                 });
             }
 
@@ -359,6 +385,7 @@ export function FlowCanvas() {
                         name: "Sample List",
                         leads: [
                             { id: "1", name: "Sayam", email: "sayam.alvi18@gmail.com", phone: "1234567890" },
+                            { id: "2", name: "Sayam", email: "sayam.a@saudebazi.com", phone: "1234567890" },
                         ],
                     },
                 ]}

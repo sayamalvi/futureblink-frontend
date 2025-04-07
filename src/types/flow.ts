@@ -8,7 +8,6 @@ export interface NodeData {
   template?: string;
   delayAmount?: number;
   delayType?: DelayType;
-  enableABTesting?: boolean;
   [key: string]: unknown;
 }
 
@@ -27,12 +26,16 @@ export interface EmailTemplate {
   id: string;
   name: string;
   description?: string;
+  content: string;
+  subject: string;
 }
 
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: 'template-1',
     name: 'Sample Template - Follow Up',
-    description: 'added by SalesBlink'
+    description: 'added by Sayam Alvi',
+    subject: 'Following up on our conversation',
+    content: 'Hi {{name}},\n\nI hope this email finds you well. I wanted to follow up on our previous conversation.\n\nBest regards,\nSalesBlink Team'
   }
 ]; 
