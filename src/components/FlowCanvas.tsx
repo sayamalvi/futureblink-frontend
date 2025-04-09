@@ -277,8 +277,7 @@ export const FlowCanvas: React.FC = () => {
         hasEmailNode,
         setIsSaving,
         showNotification: (message, type) => {
-            // Implement notification system
-            console.log(message, type);
+            showNotification(type === 'success' ? 'Success' : 'Error', message);
         },
     });
 
@@ -286,19 +285,25 @@ export const FlowCanvas: React.FC = () => {
         const emailRequests = await processSequence();
         if (emailRequests) {
             try {
-                await fetch(`${import.meta.env.VITE_BACKEND_URI}/api/outreach/schedule`, {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URI}/api/outreach/schedule`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(emailRequests),
                 });
-                console.log('Sequence saved and scheduled successfully!');
+
+                if (!response.ok) {
+                    throw new Error('Failed to schedule sequence');
+                }
+
+                showNotification('Success', 'Sequence saved and scheduled successfully!');
             } catch (error) {
+                showNotification('Error', error instanceof Error ? error.message : 'Failed to save sequence');
                 console.error('Error saving sequence:', error);
             }
         }
-    }, [processSequence]);
+    }, [processSequence, showNotification]);
 
     return (
         <div className="flex flex-col w-full h-[800px]">
@@ -370,4 +375,4 @@ export const FlowCanvas: React.FC = () => {
             />
         </div>
     );
-} 
+}
