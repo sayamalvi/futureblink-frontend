@@ -111,7 +111,7 @@ export const FlowCanvas: React.FC = () => {
         [edges, setEdges]
     );
 
-    const handleNodeClick = (event: React.MouseEvent, node: FlowNode) => {
+    const handleNodeClick = (_event: React.MouseEvent, node: FlowNode) => {
         if (node.data.type === 'add-source') {
             setSelectedNode(node);
             setIsListModalOpen(true);
